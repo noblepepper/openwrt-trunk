@@ -67,3 +67,19 @@ define KernelPackage/spi-vsc7385/description
 endef
 
 $(eval $(call KernelPackage,spi-vsc7385))
+
+define KernelPackage/spi-tty-ds
+  SUBMENU:=$(SPI_MENU)
+  TITLE:=DogStick SPI TTY Driver
+  DEPENDS:=@TARGET_ar71xx
+  KCONFIG:=CONFIG_SPI_TTY_DS
+  FILES:=$(LINUX_DIR)/drivers/spi/spi-tty-ds.ko
+  AUTOLOAD:=$(call AutoLoad,95,spi-tty-ds)
+endef
+
+define KernelPackage/spi-tty-ds/description
+  This package contains the TTY SPI driver.
+endef
+
+$(eval $(call KernelPackage,spi-tty-ds))
+
