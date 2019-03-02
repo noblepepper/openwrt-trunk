@@ -736,7 +736,7 @@ static int spi_tty_register_interrupt(struct spi_tty_dev *avr,
 	avr->gpio_irq = gpio_irq;
 	err = gpio_request(avr->gpio_irq, "DRDY");
 	if (err) {
-		dev_err(&avr->spi->dev, "cannot get GPIO (%i)\n", err);
+		dev_err(&avr->spi->dev, "cannot get GPIO (%u)\n", gpio_irq);
 		return err;
 	}
 	gpio_direction_input(avr->gpio_irq);
@@ -745,6 +745,7 @@ static int spi_tty_register_interrupt(struct spi_tty_dev *avr,
 		goto err_req_irq_gpio;
 
 	/* Low level enable gpio interrupt */
+	dev_err(&avr->spi->dev, "setting gpio %u to interrupt enabled\n", avr->gpio_irq);
 	__ath79_gpio_set_int_mode(avr->gpio_irq, 1);
 	__ath79_gpio_set_int_enable(avr->gpio_irq, 1);
 	/*
@@ -756,11 +757,14 @@ static int spi_tty_register_interrupt(struct spi_tty_dev *avr,
 	 *     function is invoked two times.
 	 *
 	 */
+	dev_err(&avr->spi->dev, "setting gpio %u to interrupt edge mode\n", avr->gpio_irq);
 	__ath79_gpio_set_int_type(avr->gpio_irq, 0);
+	dev_err(&avr->spi->dev, "setting gpio %u to interrupt edge mode\n", avr->gpio_irq);
 	__ath79_gpio_set_int_polarity(avr->gpio_irq, 1);
 
 	err = request_irq(avr->spi->irq, spi_tty_data_ready_int, SPI_TTY_IRQ,
 			  KBUILD_MODNAME, avr);
+	dev_err(&avr->spi->dev, "request irq returned %d\n", err);
 	if (err)
 		goto err_req_irq;
 
@@ -789,15 +793,18 @@ static int spi_tty_probe(struct spi_device *spi)
 	struct spi_tty_dev *avr;
 	int err = 0;
 	unsigned long flags;
-
-	if (dev_count >= SPI_SERIAL_TTY_MINORS)
+	//dev_err(&avr->spi->dev, "starting initialization \n");
+	if (dev_count >= SPI_SERIAL_TTY_MINORS){
+		printk(KERN_ERR "no minor\n");
 		return -ENOMEM;
-
+	}
 	dev_vdbg(&spi->dev, "%s:%d\n", __func__, __LINE__);
 
 	avr = kzalloc(sizeof(struct spi_tty_dev), GFP_KERNEL);
-	if (!avr)
+	if (!avr){
+		dev_err(&avr->spi->dev, "no kzalloc\n");
 		return -ENOMEM;
+	}
 	spi_set_drvdata(spi, avr);
 	avr->spi = spi;
 	spin_lock_init(&avr->lock);
@@ -808,11 +815,11 @@ static int spi_tty_probe(struct spi_device *spi)
 			(unsigned int)spi->dev.platform_data);
 	if (err)
 		goto err_req_irq;
-
+	dev_err(&avr->spi->dev, "interrupt registered\n");
 	/* Initialize port */
 	tty_port_init(&avr->port);
 	avr->port.ops = &spi_serial_port_ops;
-
+	dev_err(&avr->spi->dev, "port initialized\n");
 	/* Register new port*/
 	avr->tty_minor = dev_count;
 	avr->tty_dev = tty_port_register_device_attr(&avr->port,
@@ -822,7 +829,7 @@ static int spi_tty_probe(struct spi_device *spi)
 		err = PTR_ERR(avr->tty_dev);
 		goto err_req_tty;
 	}
-
+	dev_err(&avr->spi->dev, "port registered\n");
 	spin_lock_irqsave(&lock, flags);
 	dev_count++;
 	spin_unlock_irqrestore(&lock, flags);
